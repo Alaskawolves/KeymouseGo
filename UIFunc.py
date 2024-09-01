@@ -11,11 +11,11 @@ import locale
 import Recorder
 from importlib.machinery import SourceFileLoader
 
-from PySide2.QtGui import QTextCursor
+from PySide6.QtGui import QTextCursor
 from qt_material import list_themes, QtStyleTools
-from PySide2.QtCore import *
-from PySide2.QtWidgets import QMainWindow, QApplication
-from PySide2.QtMultimedia import QSoundEffect
+from PySide6.QtCore import *
+from PySide6.QtWidgets import QMainWindow, QApplication
+from PySide6.QtMultimedia import QSoundEffect
 from loguru import logger
 
 from Event import ScriptEvent, flag_multiplemonitor
@@ -28,8 +28,6 @@ mutex = QMutex()
 cond = QWaitCondition()
 
 os.environ['QT_ENABLE_HIGHDPI_SCALING'] = "1"
-QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
-
 if platform.system() == 'Windows':
     HOT_KEYS = ['F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10', 'F11', 'F12',
                 'XButton1', 'XButton2', 'Middle']
@@ -144,8 +142,10 @@ class UIFunc(QMainWindow, Ui_UIView, QtStyleTools):
 
         # For tune playing
         self.player = QSoundEffect()
-        self.volumeSlider.setValue(100)
-        self.volumeSlider.valueChanged.connect(lambda: self.player.setVolume(self.volumeSlider.value()/100.0))
+        self.volumeSlider.setValue(50)
+        self.volumeSlider.valueChanged.connect(
+            lambda: self.player.setVolume(
+                self.volumeSlider.value()/100.0))
 
         self.running = False
         self.recording = False
@@ -241,8 +241,8 @@ class UIFunc(QMainWindow, Ui_UIView, QtStyleTools):
 
         @Slot(ScriptEvent)
         def on_record_event(event: ScriptEvent):
-            # 判断热键
-            if event.event_type == 'EM':
+            # 判断mouse热键
+            if event.event_type == "EM":
                 name = event.message
                 if 'mouse x1 down' == name and hotkeymethod('xbutton1'):
                     return
@@ -261,14 +261,15 @@ class UIFunc(QMainWindow, Ui_UIView, QtStyleTools):
                 if key_name in HOT_KEYS:
                     return
             # 录制事件
-            if not(not self.recording or self.running or self.pauserecord):
+            if not (not self.recording or self.running or self.pauserecord):
                 if self.extension.onrecord(event, self.actioncount):
                     if event.event_type == 'EM' and not flag_multiplemonitor:
                         record = [event.delay, event.event_type, event.message]
                         tx, ty = event.action
                         record.append(['{0}%'.format(tx), '{0}%'.format(ty)])
                     else:
-                        record = [event.delay, event.event_type, event.message, event.action]
+                        record = [event.delay, event.event_type, event.message,
+                                  event.action]
                     if event.addon:
                         record.append(event.addon)
                     self.record.append(record)
@@ -281,8 +282,10 @@ class UIFunc(QMainWindow, Ui_UIView, QtStyleTools):
         Recorder.set_callback(on_record_event)
         Recorder.set_interval(self.mouse_move_interval_ms.value())
 
-    def eventFilter(self, watched, event):
-        if event.type() == event.KeyPress or event.type() == event.KeyRelease:
+    def eventFilter(self, watched, event: QEvent):
+        et: QEvent.Type = event.type()
+        # print(event, et)
+        if et == QEvent.KeyPress or et == QEvent.KeyRelease:
             return True
         return super(UIFunc, self).eventFilter(watched, event)
 
@@ -397,7 +400,6 @@ class UIFunc(QMainWindow, Ui_UIView, QtStyleTools):
         self.choice_script.clear()
         self.choice_script.addItems(scripts)
         self.choice_script.setCurrentIndex(scripts_map['current_index'])
-
 
     def recordMethod(self):
         if self.recording:
@@ -632,7 +634,7 @@ class RunScriptClass(QThread):
         # 识别标签或脚本语句
         for i in range(startindex, steps):
             if type(s[i]) == str:
-                labeldict[s[i]] = i - numoflabels
+                labeldict[s[i]] = i - numoflabels - startindex
                 numoflabels = numoflabels + 1
             else:
                 delay = s[i][0] / (speed / 100)
@@ -654,7 +656,9 @@ class RunScriptClass(QThread):
     @classmethod
     def run_sub_script(cls, extension, scriptpath: str, subextension_name: str = 'Extension',
                         runtimes: int = 1, speed: int = 100, thd=None, labeldict=None):
-        newevents, module_name = RunScriptClass.parsescript(scriptpath, speed=speed)
+        newevents, module_name, label_dict = RunScriptClass.parsescript(scriptpath, speed=speed)
+        if labeldict is None:
+            labeldict = label_dict
         newextension = RunScriptClass.getextension(
             module_name if module_name is not None else subextension_name,
             runtimes=runtimes,

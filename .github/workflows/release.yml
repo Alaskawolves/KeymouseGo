@@ -4,8 +4,6 @@
 name: release
 
 on:
-  pull_request:
-    branches: [ "master" ]
   workflow_dispatch:
 
 permissions:
@@ -29,7 +27,7 @@ jobs:
           pip3 install pyinstaller
       - name: Bundle Packages
         run: |
-          pyinstaller -Fw --add-data './assets;assets' KeymouseGo.py
+          pyinstaller -Fw --icon=Mondrian.ico --add-data './assets;assets' KeymouseGo.py
       - name: Copy artifact
         run: |
           mkdir artifact && mv dist/KeymouseGo.exe ./artifact/KeymouseGo${{ env.keymousego-version }}-win.exe
